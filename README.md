@@ -28,9 +28,9 @@ Explanation:
 ----
 once the AI is done with it's task it'll type PURGE and restart itself.
 --
-memory is a temporary memory that saves the past 3 messages from the AI with a timestamp.
+memory is a temporary memory that saves the past 3 messages from the AI with a timestamp. It creates and deletes itself.
 --
-persistent memory is permanent memory that the AI will use for more complex tasks for planning
+persistent memory is permanent memory that the AI will use for more complex tasks for planning. It creates and deletes itself.
 --
 both of these are deleted upon PURGE.
 --
