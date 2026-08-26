@@ -1,6 +1,7 @@
 #CoWork - NC
 
 print("loading...")
+print()
     
 import os, time, re, pyautogui
 from google import genai
@@ -28,14 +29,14 @@ _KEY_ALIASES = {
     "control": "ctrl",
 }
 
+compression_factor = .6 #change this if you want slower but more accurate AI. .7 = 70% res, 1 would be 100% res.
+
+pattern = r"\[(.*?)\]"
+
 def normalize_key(k):
     cleaned = k.strip().lower().replace("_", " ")
     cleaned = _KEY_ALIASES.get(cleaned, cleaned)
     return cleaned.replace(" ", "")
-
-compression_factor = .6 #change this if you want slower but more accurate AI. .7 = 70% res, 1 would be 100% res.
-
-print()
 
 width, height = pyautogui.size()
 
@@ -53,9 +54,9 @@ output_file = os.path.join(script_dir, "screenshot.png")
 import json
 
 memory_file = os.path.join(script_dir, "memory.json")
+persistent_memory_file = os.path.join(script_dir, "persistent_memory.json")
 
 def load_memory():
-    """Returns the list of past messages, or an empty list if the file doesn't exist yet."""
     if not os.path.exists(memory_file):
         return []
     try:
@@ -65,11 +66,31 @@ def load_memory():
         return []
 
 def save_memory(memory_list):
-    """Saves only the last 3 entries to the JSON file."""
     trimmed = memory_list[-3:]
     with open(memory_file, "w") as f:
         json.dump(trimmed, f, indent=4)
+        
+def load_persistent_memory():
+    if not os.path.exists(persistent_memory_file):
+        return None
+    try:
+        with open(persistent_memory_file, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, ValueError):
+        return None
 
+def save_persistent_memory(entry):
+    with open(persistent_memory_file, "w") as f:
+        json.dump(entry, f, indent=4)
+
+def clear_memory():
+    if os.path.exists(memory_file):
+        os.remove(memory_file)
+
+def clear_persistent_memory():
+    if os.path.exists(persistent_memory_file):
+        os.remove(persistent_memory_file)
+        
 def do_action(text="hey wsp dude [left;100,100] oh yeah and [right;200,200]"):
     pattern = r"\[(.*?)\]"
     
@@ -88,7 +109,14 @@ def do_action(text="hey wsp dude [left;100,100] oh yeah and [right;200,200]"):
                 time.sleep(.2)
                 pyautogui.write(sentence, interval=0.01)
                 time.sleep(.2)
-                        
+            
+            elif purpose == "persistent":
+                time.sleep(.01)
+                persistent_entry = {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "text": payload
+                }
+                save_persistent_memory(persistent_entry)
             elif purpose == "multhold":
                 keys = [normalize_key(k)  for k in payload.split(",") if k.strip()]
                 if keys:
@@ -224,10 +252,17 @@ def main():
         # ready to be sent over a network or saved to disk.
 
         past_messages = load_memory()
-    
+        persistent_memory = load_persistent_memory()
+        
+        persistent_memory_context = ""
+        if persistent_memory:
+            persistent_memory_context = "\n\nHere is your persistent memory for critical tasks and planning:\n"
+            persistent_memory_context += f"({persistent_memory['timestamp']}) {persistent_memory['text']}\n" 
+            
         memory_context = ""
         if past_messages:
             memory_context = "\n\nHere are your last few messages for context. use them to understand what you did, doing, and need to do:\n"
+           
             for i, entry in enumerate(past_messages, 1):
                 memory_context += f"{i}. ({entry['timestamp']}) {entry['text']}\n"
     
@@ -279,8 +314,11 @@ def main():
                        + "[persistent;first i am going to add event 1, it must add it on dd/mm/yyyy and at 00:00. next i will do event...] etc."
                        + "then once you've recognized you've completed the first event you would include in your output"
                        + "[persistent;first event completed, reading the previous persistent memory i found the details to event 2, 3 (etc) now i am going to add event two, i will do 3 after that]."
-                       + ". And This is your previous memory : "
-                       + memory_context)
+                       + ". This is your previous memory : "
+                       + memory_context
+                       + ". And now this is your persistent memory "
+                       + persistent_memory_context
+                       + ".")
     
         response = client.models.generate_content(
             model="gemini-3.6-flash",
@@ -299,7 +337,7 @@ def main():
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "text": result_text
         })
-        save_memory(past_messages)
+        save_memory(past_messages)          
         
         do_action(result_text)
         
@@ -315,9 +353,12 @@ def main():
         
         time.sleep(.1)
         
-        if"PURGE" in result_text:
+        if"PURGE" in result_text:            
             print("--")
-            save_memory()
+            
+            clear_memory()
+            clear_persistent_memory()
+                
             break
 
 while True:
