@@ -4,7 +4,7 @@ I didn't feel like paying for CoWork, so i made my own. Set your API Key on wind
 --
 made by NC (ECE Student in UB)
 --
-you need to pip install ___ like a million things
+requirements: you need to pip install ___ like a million things. look at the python imports or just wing it. also you MUST put in your path in run.bat, it's obvious where. i suggest putting CoWork in your desktop.
 --
 suggestions: i suggest you run this via the run.BAT. also maybe put the transparency in the CMD somewhat transparent that seems to help. one more thing, there's a mouse auto hider i use but it actually decreases the AI accuracy so if you have something similar then turn it off.
 --
